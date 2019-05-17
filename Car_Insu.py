@@ -81,8 +81,10 @@ df_test=df_test.drop(['time'],axis=1)
 #Standardization
 scaler = StandardScaler().fit(df_train_0_x)
 df_train_0_x_rescaled = scaler.transform(df_train_0_x)
+
 scaler1 = StandardScaler().fit(df_valid_0_x)
 df_valid_0_x_rescaled = scaler1.transform(df_valid_0_x)
+
 scaler2 = StandardScaler().fit(df_valid.drop(['y'], axis = 1))
 df_valid_x_rescaled = scaler2.transform(df_valid.drop(['y'], axis = 1))
 
@@ -140,7 +142,7 @@ plt.xlabel('Threshold')
 plt.ylabel('Precision/Recall')
 plt.legend()
 plt.show()
-
+    
 test_x_predictions = autoencoder.predict(df_test_x_rescaled)
 mse = np.mean(np.power(df_test_x_rescaled - test_x_predictions, 2), axis=1)
 error_df_test = pd.DataFrame({'Reconstruction_error': mse,
@@ -161,6 +163,54 @@ plt.show();
 
 pred_y = [1 if e > threshold_fixed else 0 for e in error_df.Reconstruction_error.values]
 conf_matrix = confusion_matrix(error_df.True_class, pred_y)
+plt.figure(figsize=(12, 12))
+sns.heatmap(conf_matrix, xticklabels=LABELS, yticklabels=LABELS, annot=True, fmt="d");
+plt.title("Confusion matrix")
+plt.ylabel('True class')
+plt.xlabel('Predicted class')
+plt.show()
+
+##-##-##-##
+
+#Data Testing on Data given later
+dff = pd.read_csv("test_set07.csv")
+dff.columns
+dff = dff.rename(columns = {'Claim_Amount':'y'})
+dff = dff.drop(['Unnamed: 0', 'Household_ID', 'Vehicle', 'Calendar_Year', 'Model_Year',
+       'Blind_Make', 'Blind_Model', 'Blind_Submodel', 'Cat1', 'Cat2', 'Cat3',
+       'Cat4', 'Cat5', 'Cat6', 'Cat7', 'Cat8', 'Cat9', 'Cat10', 'Cat11',
+       'Cat12', 'OrdCat','NVCat'], axis=1)
+for i in range(dff.shape[0]):
+    if dff.y.loc[i]>0:
+         dff.y.loc[i] = 1
+    else: 
+        dff.y.loc[i] = 0
+
+#Standardization
+scalerr = StandardScaler().fit(dff.drop(['y'], axis=1))
+dffr = scalerr.transform(dff.drop(['y'], axis=1))
+
+#Predicting for unknown data
+dffp = autoencoder.predict(dffr)
+mse = np.mean(np.power(dffr - dffp, 2), axis=1)
+errordf = pd.DataFrame({'Reconstruction_error': mse,
+                        'True_class': dff['y']})
+errordf = errordf.reset_index()
+threshold_fixed = .85
+groups = errordf.groupby('True_class')
+fig, ax = plt.subplots()
+for name, group in groups:
+    ax.plot(group.index, group.Reconstruction_error, marker='o', ms=3.5, linestyle='',
+            label= "Break" if name == 1 else "Normal")
+ax.hlines(threshold_fixed, ax.get_xlim()[0], ax.get_xlim()[1], colors="r", zorder=100, label='Threshold')
+ax.legend()
+plt.title("Reconstruction error for different classes")
+plt.ylabel("Reconstruction error")
+plt.xlabel("Data point index")
+plt.show();
+
+predy = [1 if e > threshold_fixed else 0 for e in errordf.Reconstruction_error.values]
+conf_matrix = confusion_matrix(errordf.True_class, predy)
 plt.figure(figsize=(12, 12))
 sns.heatmap(conf_matrix, xticklabels=LABELS, yticklabels=LABELS, annot=True, fmt="d");
 plt.title("Confusion matrix")
